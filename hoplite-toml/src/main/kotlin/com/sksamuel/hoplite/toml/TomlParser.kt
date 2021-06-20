@@ -9,6 +9,7 @@ import com.sksamuel.hoplite.MapNode
 import com.sksamuel.hoplite.Node
 import com.sksamuel.hoplite.Pos
 import com.sksamuel.hoplite.PropertySource
+import com.sksamuel.hoplite.PropertySourceContext
 import com.sksamuel.hoplite.StringNode
 import com.sksamuel.hoplite.fp.valid
 import com.sksamuel.hoplite.parsers.Parser
@@ -32,7 +33,7 @@ class TomlParser : Parser {
 class TomlPropertySource(
   private val str: String
 ) : PropertySource {
-  override fun node(): ConfigResult<Node> = TomlParser().load(str.byteInputStream(), "").valid()
+  override fun node(context: PropertySourceContext): ConfigResult<Node> = TomlParser().load(str.byteInputStream(), "").valid()
 }
 
 object TableProduction {

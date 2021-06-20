@@ -3,6 +3,7 @@ package com.sksamuel.hoplite.yaml
 import com.sksamuel.hoplite.ConfigResult
 import com.sksamuel.hoplite.Node
 import com.sksamuel.hoplite.PropertySource
+import com.sksamuel.hoplite.PropertySourceContext
 import com.sksamuel.hoplite.fp.valid
 
 /**
@@ -20,5 +21,5 @@ import com.sksamuel.hoplite.fp.valid
 class YamlPropertySource(
   private val str: String
 ) : PropertySource {
-  override fun node(): ConfigResult<Node> = YamlParser().load(str.byteInputStream(), "").valid()
+  override fun node(context: PropertySourceContext): ConfigResult<Node> = YamlParser().load(str.byteInputStream(), "").valid()
 }

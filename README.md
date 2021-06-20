@@ -6,15 +6,26 @@ Hoplite is a Kotlin library for loading configuration files into typesafe classe
 [<img src="https://img.shields.io/maven-central/v/com.sksamuel.hoplite/hoplite-core.svg?label=latest%20release"/>](http://search.maven.org/#search%7Cga%7C1%7Choplite)
 [<img src="https://img.shields.io/nexus/s/https/oss.sonatype.org/com.sksamuel.hoplite/hoplite-core.svg?label=latest%20snapshot&style=plastic"/>](https://oss.sonatype.org/content/repositories/snapshots/com/sksamuel/hoplite/)
 
-
 ## Features
 
-- **Multiple formats:** Write your configuration in [several formats](#supported-formats): Yaml, JSON, Toml, Hocon, or Java .properties files or even mix and match formats in the same system.
-- **Property Sources:** Per-system [overrides](#property-sources-new-in-110) are possible from JVM system properties, environment variables, JDNI or a per-user local config file.
-- **Batteries included:** Support for many [standard types](#decoders) such as primitives, enums, dates, collection types, inline classes, uuids, nullable types, as well as popular Kotlin third party library types such as `NonEmptyList`, `Option` and `TupleX` from [Arrow](https://arrow-kt.io/).
-- **Custom Data Types:** The `Decoder` interface makes it easy to add support for your custom domain types or standard library types not covered out of the box.
-- **Cascading:** Config files can be [stacked](#cascading-config). Start with a default file and then layer new configurations on top. When resolving config, lookup of values falls through to the first file that contains a definition. Can be used to have a default config file and then an environment specific file.
-- **Beautiful errors:** Fail fast when the config objects are built, with detailed and [beautiful errors](#beautiful-errors) showing exactly what went wrong and where.
+- **Multiple formats:** Write your configuration in [several formats](#supported-formats): Yaml, JSON, Toml, Hocon, or
+  Java .properties files or even mix and match formats in the same system.
+- **Property Sources:** Per-system [overrides](#property-sources-new-in-110) are possible from JVM system properties,
+  environment variables, JDNI or a per-user local config file.
+- **Batteries included:** Support for many [standard types](#decoders) such as primitives, enums, dates, collection
+  types, inline classes, uuids, nullable types, as well as popular Kotlin third party library types such
+  as `NonEmptyList`, `Option` and `TupleX` from [Arrow](https://arrow-kt.io/).
+- **Custom Data Types:** The `Decoder` interface makes it easy to add support for your custom domain types or standard
+  library types not covered out of the box.
+- **Cascading:** Config files can be [stacked](#cascading-config). Start with a default file and then layer new
+  configurations on top. When resolving config, lookup of values falls through to the first file that contains a
+  definition. Can be used to have a default config file and then an environment specific file.
+- **Beautiful errors:** Fail fast when the config objects are built, with detailed
+  and [beautiful errors](#beautiful-errors) showing exactly what went wrong and where.
+
+## Changelog
+
+See the list of changes in each release [here](changelog.md).
 
 ## Getting Started
 
@@ -62,6 +73,9 @@ val config = ConfigLoader().loadConfigOrThrow<Config>("/application-staging.yaml
 If the values in the config file are compatible, then an instance of `Config` will be returned.
 Otherwise an exception will be thrown containing details of the errors.
 
+
+
+
 ## Config Loader
 
 As you have seen from the getting started guide, `ConfigLoader` is the entry point to using Hoplite.
@@ -74,6 +88,9 @@ Another is to return a `ConfigResult` via the `loadConfig<T>` function.
 
 For most cases, when you are resolving config at application startup, the exception based approach is better.
 This is because you typically want any errors in config to abort application bootstrapping, dumping errors to the console.
+
+
+
 
 ## Beautiful Errors
 
@@ -88,17 +105,17 @@ Error loading config because:
 
     - Could not instantiate 'com.sksamuel.hoplite.json.Foo' because:
 
-        - 'wrongType': Required type Boolean could not be decoded from a Long (/error1.json:2:19)
+        - 'bar': Required type Boolean could not be decoded from a Long (/error1.json:2:19)
 
-        - 'whereAmI': Missing from config
+        - 'baz': Missing from config
 
-        - 'notnull': Type defined as not-null but null was loaded from config (/error1.json:6:18)
+        - 'hostname': Type defined as not-null but null was loaded from config (/error1.json:6:18)
 
         - 'season': Required a value for the Enum type com.sksamuel.hoplite.json.Season but given value was Fun (/error1.json:8:18)
 
-        - 'notalist': Defined as a List but a Boolean cannot be converted to a collection (/error1.json:3:19)
+        - 'users': Defined as a List but a Boolean cannot be converted to a collection (/error1.json:3:19)
 
-        - 'duration': Required type java.time.Duration could not be decoded from a String (/error1.json:7:26)
+        - 'interval': Required type java.time.Duration could not be decoded from a String (/error1.json:7:26)
 
         - 'nested': - Could not instantiate 'com.sksamuel.hoplite.json.Wibble' because:
 
@@ -132,21 +149,43 @@ That same function can be used to map non-default file extensions to an existing
 ## Property Sources
 
 The `PropertySource` interface is how Hoplite reads configuration values.
+
 Hoplite supports several built in property source implementations, and you can write your own if required.
 
-This is the list of built in property sources configured by default, and the order is from top to bottom.
-Configuration values in a higher priority source take precedence over those in lower sources.
+The `EnvironmentVariablesPropertySource`, `SystemPropertiesPropertySource` and `UserSettingsPropertySource` sources are automatically registered, with
+precedence in that order. Other property sources can be passed to the config loader builder.
+
+### EnvironmentVariablesPropertySource
+
+The `EnvironmentVariablesPropertySource` reads config from environment variables. It does not map cases so `HOSTNAME` does *not* provide a value for a field with the name `hostname`.
+
+For nested config, use a period to seperate keys, for example `topic.name` would override `name` located in a `topic` parent.
+Alternatively, in some environments a `.` is not supported in ENV names, so you can also use double underscore `__`. Eg `topic__name` would override name in a Topic object.
+
+Optionally you can also create a `EnvironmentVariablesPropertySource` with `allowUppercaseNames` set to `true` to allows for uppercase-only names.
+
+### SystemPropertiesPropertySource
+
+The `SystemPropertiesPropertySource` provides config through system properties that are prefixed with `config.override.`.
+For example, starting your JVM with `-Dconfig.override.database.name` would override a config key of `database.name` residing in a file.
 
 
-| Property Source Implementation            | Description |
-|:------------------------------------------|:------------------------------------------------------------|
-| `EnvironmentVariablesPropertySource`      | Reads config from environment variables. Provides no case mappings, so `HOSTNAME` does *not* override hostname. For nested config, use a period to seperate keys, for example `topic.name` would override `name` located in a `topic` parent. Alternatively, in some environments a `.` is not supported in ENV names, so you can also use double underscore `__`. Eg `topic__name` would override name in a Topic object. Optionally you can also create a `EnvironmentVariablesPropertySource` with `allowUppercaseNames` set to `true` to allows for uppercase-only names. |
-| `SystemPropertiesPropertySource`          | Provides config through system properties that are prefixed with `config.override.`. For example, starting your JVM with `-Dconfig.override.database.name` would override a config key of `database.name` residing in a file. |
-| `UserSettingsPropertySource`              | Provides config through a config file defined at ~/.userconfig.[ext] where ext is one of the [supported formats](#supported-formats). |
+### UserSettingsPropertySource
 
+The `UserSettingsPropertySource` provides config through a config file defined at ~/.userconfig.[ext] where ext is one of the [supported formats](#supported-formats).
+
+
+### InputStreamPropertySource
+
+The `InputStreamPropertySource` provides config from an input stream. This source requires a parameter that indicates what the format is. For example, `InputStreamPropertySource(input, "yml")`
+
+
+### ConfigFilePropertySource
 
 Config from files or resources are retrieved via instances of `ConfigFilePropertySource`. This property source is added automatically when we pass
 strings, `File`s or `Path`s to the `loadConfigOrThrow` or `loadConfig` functions.
+
+There are convenience methods on `PropertySource` to construct `ConfigFilePropertySource`s from resources on the classpath or files.
 
 For example, the following are equivalent:
 
@@ -167,13 +206,53 @@ The advantage of the second approach is that we can specify a file can be option
 
 ```kotlin
 ConfigLoader.Builder()
-  .addSource(PropertySource.resource("/missing.yml", true))
+  .addSource(PropertySource.resource("/missing.yml", optional = true))
   .addSource(PropertySource.resource("/config.json"))
-   .build()
+  .build()
   .loadConfig<MyConfig>()
 ```
 
+### JsonPropertySource
 
+To use a JSON string as a property source, we can use the `JsonPropertySource` implementation.
+For example,
+
+```kotlin
+ConfigLoader.Builder()
+   .addSource(JsonPropertySource(""" { "database": "localhost", "port": 1234 } """))
+   .build()
+   .loadConfig<MyConfig>()
+```
+
+### YamlPropertySource
+
+To use a Yaml string as a property source, we can use the `YamlPropertySource` implementation.
+
+```kotlin
+ConfigLoader.Builder()
+   .addSource(YamlPropertySource(
+     """
+        database: "localhost"
+        port: 1234
+     """))
+   .build()
+   .loadConfig<MyConfig>()
+```
+
+### TomlPropertySource
+
+To use a Toml string as a property source, we can use the `TomlPropertySource` implementation.
+
+```kotlin
+ConfigLoader.Builder()
+  .addSource(TomlPropertySource(
+    """
+        database = "localhost"
+        port = 1234
+     """))
+  .build()
+  .loadConfig<MyConfig>()
+```
 
 ## Cascading Config
 
@@ -269,13 +348,81 @@ The resolution rules are as follows:
 
 
 
+## Strict Mode
+
+Hoplite can be configured to throw an error if a config value is not used. This is useful to detect stale configs.
+
+To enable this setting, use `.strict()` on the config builder. For example:
+
+```kotlin
+ConfigLoader.Builder()
+  .addSource(PropertySource.resource("/config-prd.yml", true))
+  .addSource(PropertySource.resource("/config.yml"))
+  .strict()
+  .build()
+  .loadConfig<MyConfig>()
+```
+
+
+## Aliases
+
+If you wish to refactor your config classes and rename a field, but you don't want to have to update all your config files,
+you can add a migration path by allowing a field to use more than one name. To do this we use the @ConfigAlias annotation.
+
+For example, with this config file:
+
+```yml
+database:
+  host: String
+```
+
+We can marshall this into the following data classes.
+
+```kotlin
+data class Database(val host: String)
+data class MyConfig(val database: Database)
+```
+
+or
+
+```kotlin
+data class Database(@ConfigAlias("host") val hostname: String)
+data class MyConfig(val database: Database)
+```
+
+
+## Param Mappers
+
+Hoplite provides an interface `ParameterMapper` which allows the parameter name to be modified before it is looked up
+inside a config source. This allows hoplite to find config keys which don't match the exact name. The main use case for
+this is to allow `snake_case` or `kebab-case` names to be used as config keys.
+
+For example, given the following config class:
+
+```kotlin
+data class Database(val instanceHostName: String)
+```
+
+Then we can of course define our config file (using YML as an example):
+
+```yml
+database:
+    instanceHostName: server1.prd
+```
+
+But because Hoplite registers `KebabCaseParamMapper` and `SnakeCaseParamMapper` automatically, we can just as easily use:
+
+```yml
+database:
+  instance-host-name: server1.prd
+```
 
 ## Decoders
 
 Hoplite converts the raw value in config files to JDK types using instances of the `Decoder` interface.
 There are built in decoders for all the standard day to day types, such as primitives, dates, lists, sets, maps, enums, arrow types and so on. The full list is below:
 
-| JDK Type  | Conversion Notes |
+| Basic JDK Types  | Conversion Notes |
 |---|---|
 | `String` |
 | `Long` |
@@ -286,6 +433,10 @@ There are built in decoders for all the standard day to day types, such as primi
 | `Double` |
 | `Float` |
 | `Enums` | Java and Kotlin enums are both supported. An instance of the defined Enum class will be created with the constant value given in config. |
+| `BigDecimal` | Converts from a String, Long, Int, Double, or Float into a BigDecimal |
+| `BigInteger` | Converts from a String, Long or Int into a BigInteger. |
+| `UUID` | Creates a `java.util.UUID` from a String |
+| **java.time types** | |
 | `LocalDateTime` |
 | `LocalDate` |
 | `LocalTime` |
@@ -295,30 +446,50 @@ There are built in decoders for all the standard day to day types, such as primi
 | `YearMonth` | Creates an instance of `YearMonth` from a String in the format `2007-12` |
 | `MonthDay` | Creates an instance of `MonthDay` from a String in the format `08-18` |
 | `java.util.Date` | |
-| `Regex` | Creates a `kotlin.text.Regex` from a regex compatible string |
-| `UUID` | Creates a `java.util.UUID` from a String |
-| `List<A>` | Creates a List from either an array or a string delimited by commas.
-| `Set<A>` | Creates a Set from either an array or a string delimited by commas.
-| `SortedSet<A>` | Creates a SortedSet from either an array or a string delimited by commas.
-| `Map<K,V>` |
+| **java.net types** | |
+| `URI` |  |
+| `URL` |  |
+| `InetAddress` |  |
+| **JDK IO types** | |
+| `File` | Creates a java.io.File from a String path |
+| `Path` | Creates a java.nio.Path from a String path |
+| **Kotlin stdlib types** | |
+| `Pair<A,B>` | Converts from an array of three two into an instance of `Pair<A,B>`. Will fail if the array does not have exactly two elements. |
+| `Triple<A,B,C>` | Converts from an array of three elements into an instance of `Triple<A,B,C>`. Will fail if the array does not have exactly three elements. |
+| `kotlin.text.Regex` | Creates a `kotlin.text.Regex` from a regex compatible string |
+| **Collections** | |
+| `List<A>` | Creates a List from either an array or a string delimited by commas. |
+| `Set<A>` | Creates a Set from either an array or a string delimited by commas. |
+| `SortedSet<A>` | Creates a SortedSet from either an array or a string delimited by commas. |
+| `Map<K,V>` | |
 | `LinkedHashMap<K,V>` | A Map that mains the order defined in config |
-| `arrow.data.NonEmptyList<A>` | Converts arrays into a `NonEmptyList<A>` if the array is non empty. If the array is empty then an error is raised.
+| **hoplite types** | |
+| `Masked` | Wraps a String in a Masked object that redacts toString() |
+| `SizeInBytes` | Returns a SizeInBytes object which parses values like 12Mib or 9KB |
+| **javax.security.auth** | |
 | `X500Principal` | Creates an instance of `X500Principal` for String values |
 | `KerberosPrincipal` | Creates an instance of `KerberosPrincipal` for String values |
 | `JMXPrincipal` | Creates an instance of `JMXPrincipal` for String values |
 | `Principal` | Creates an instance of `BasicPrincipal` for String values |
-| `File` | Creates a java.io.File from a String path |
-| `Path` | Creates a java.nio.Path from a String path |
-| `BigDecimal` | Converts from a String, Long, Int, Double, or Float into a BigDecimal |
-| `BigInteger` | Converts from a String, Long or Int into a BigInteger. |
-| `arrow.core.Option<A>` | A `None` is used for null or undefined values, and present values are converted to a `Some<A>` |
+| **Arrow** | Requires `hoplite-arrow` module |
+| `arrow.data.NonEmptyList<A>` | Converts arrays into a `NonEmptyList<A>` if the array is non empty. If the array is empty then an error is raised. |
+| `arrow.core.Option<A>` | A `None` is used for null or undefined values, and present values are converted to a `Some<A>`. |
 | `arrow.core.Tuple2<A,B>` | Converts an array of two elements into an instance of `Tuple2<A,B>`.  Will fail if the array does not have exactly two elements.|
 | `arrow.core.Tuple3<A,B,C>` | Converts an array of three elements into an instance of `Tuple3<A,B,C>`. Will fail if the array does not have exactly three elements. |
 | `arrow.core.Tuple4<A,B,C,D>` | Converts an array of four elements into an instance of `Tuple4<A,B,C,D>`. Will fail if the array does not have exactly four elements. |
 | `arrow.core.Tuple5<A,B,C,D,E>` | Converts an array of five elements into an instance of `Tuple5<A,B,C,D,E>`. Will fail if the array does not have exactly five elements. |
-| `Pair<A,B>` | Converts from an array of three two into an instance of `Pair<A,B>`. Will fail if the array does not have exactly two elements. |
-| `Triple<A,B,C>` | Converts from an array of three elements into an instance of `Triple<A,B,C>`. Will fail if the array does not have exactly three elements. |
-| `HikariDataSource` | Converts nested config into a `HikariDataSource`. Any keys nested under the field name will be passed through to the `HikariConfig` object as the datasource is created. |
+| **Hikari Connection Pool** | Requires `hoplite-arrow` module |
+| `HikariDataSource` | Converts nested config into a `HikariDataSource`. Any keys nested under the field name will be passed through to the `HikariConfig` object as the datasource is created. Requires `hoplite-hikaricp` module |
+| **Hadoop Types** | Requires `hoplite-hdfs` module |
+| `org.apache.hadoop.fs.Path` | Returns instances of HDFS Path objects |
+| **CronUtils types** | Requires `hoplite-cronutils` module |
+| `com.cronutils.model.Cron` | Returns parsed instance of a cron expression |
+| **kotlinx datetime Types** | Requires `hoplite-datetime` module |
+| `kotlinx.datetime.LocalDateTime` |  |
+| `kotlinx.datetime.LocalDate` |  |
+| `kotlinx.datetime.Instant` |  |
+| **AWS SDK types** | Requires `hoplite-aws` module |
+| `com.amazonaws.regions.Region` |
 
 ## Preprocessors
 
@@ -351,6 +522,7 @@ These built-in preprocessors are registered automatically.
 | System Property Preprocessor | Replaces any strings of the form ${VAR} with the system property $VAR if defined. These replacement strings can occur between other strings.<br/><br/>For example `debug: ${DEBUG}` would result in debug being assigned the value `true` assuming the application had been started with `-Ddebug=true` |
 | Random Preprocessor | Inserts random strings into the config. See the section on Random Preprocessor for syntax. |
 | Props File Preprocessor | Replaces any strings of the form ${key} with the value of the key in a provided `java.util.Properties` file. The file can be specified by a `Path` or a resource on the classpath. |
+| Lookup Preprocessor | Replaces any strings of the form {{key}} with the value of that node in the already parsed config. In other words, this allow substitution from config in one place to another place (even across files). |
 | AWS Parameter Store Preprocessor | Replaces strings of the form ${ssm:key} by looking up the value of key from the AWS parameter store.<br/><br/>This preprocessor requires the `hoplite-aws` module to be added to the classpath. |
 
 ### Random Preprocessor
@@ -493,8 +665,9 @@ Hoplite makes available several other modules that add functionality outside of 
 | hoplite-aws    | Provides decoder for aws `Region` and a preprocessor for Amazon's parameter store |
 | hoplite-datetime  | Provides decoders for [kotlinx datetime](https://github.com/Kotlin/kotlinx-datetime). Requires Kotlin 1.4.x |
 | hoplite-hdfs   | Provides decoder for hadoop `Path` |
-| hoplite-hikari | Provides decoder for `HikariDataSource` |
+| hoplite-hikaricp | Provides decoder for `HikariDataSource` |
 | hoplite-javax  | Provides decoders for Principals |
+| hoplite-vavr  | Provides decoders for [vavr](https://github.com/vavr-io/vavr) |
 
 ## License
 ```
